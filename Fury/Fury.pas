@@ -10,11 +10,14 @@ const offset: byte = 80;
 var //general variables
 	{$I tilesSet.txt}
 	{$I levels.txt}
+    ala: byte = 0;
 	go: byte =1;
 	loop: byte;
 	scrollCounter: byte = 0;
 	levelPosCounter: byte;
-
+	
+	draw: byte =0;
+	
 	//display list and video
 	dl: array [0..77] of byte absolute $8000;
 	//vram starts at lms start
@@ -75,7 +78,7 @@ begin
 end;
 
 
-procedure coarseScrollLeft;
+{procedure coarseScrollLeft;
 begin
 		dl4:= word(@dl)+4;
 		if (scrollCounter<40) then 	begin
@@ -101,25 +104,127 @@ begin
 		end;
 
 end;
+}
+
+procedure coarseScrollLeft;
+begin
+		dl4:= word(@dl)+4;
+		
+		if (scrollCounter<40) then 	begin
+			
+			inc(levelPosCounter);
+			writeTile(scrollCounter+40,level1[levelPosCounter]);
+
+			//coarse scroll one char
+			for loop:=0 to 23 do begin
+				lmsTemp:=Dpeek(dl4)+1;
+				DPoke(dl4,lmsTemp);
+				inc(dl4,3);
+			end;
+			writeTile(scrollCounter,level1[levelPosCounter]);
+			inc(scrollCounter);
+			
+		end
+		else begin
+			//reset all lms to start position to wrap scroll
+			for loop:=0 to 23 do begin
+				DPoke(dl4,lmsOrg[loop]);
+				inc(dl4,3);
+			end;
+			scrollCounter:=0;
+			levelPosCounter:=39;//todo: remove
+		end;
+
+end;
+
 
 
 procedure mainLoop;
+
 begin
 	scrollDir:=dirValues[stick0];
-	if scrollDir=1 then begin
+	
+	delay(0);	
+	
+	if (scrollDir=1) then begin
 		scrollDir:=0;
-		coarseScrollLeft;
-		MoveP(0, 80+scrollCounter, 65);
-		MoveP(1, 88+scrollCounter, 65);
-		swap;
+		if (ala=2) then begin
+			//coarseScrollLeft;
+			ala:=0;
+		end
+		else 
+			ala:=ala+1;
+		//MoveP(0, 80+scrollCounter, 65);
+		//MoveP(1, 88+scrollCounter, 65);
+		//pmlib.swap;
 	end
 	else if scrollDir=2 then begin
 	end;
 end;
 
+procedure incLmsEnd;
+begin
+	inc(levelPosCounter);
+	writeTile(scrollCounter+40,level1[levelPosCounter]);
+end;
+
+procedure incLmsBegin;
+begin
+	writeTile(scrollCounter,level1[levelPosCounter]);
+	inc(scrollCounter);
+end;
+
+procedure updateLms;
+begin
+	//coarse scroll one char
+	for loop:=0 to 23 do begin
+		lmsTemp:=Dpeek(dl4)+1;
+		DPoke(dl4,lmsTemp);
+		inc(dl4,3);
+	end;
+end;
+
+procedure resetLms;
+begin
+	//reset all lms to start position to wrap scroll
+	for loop:=0 to 23 do begin
+		DPoke(dl4,lmsOrg[loop]);
+		inc(dl4,3);
+	end;
+end;
+
+procedure scrollAndUpdate;
+begin
+	if (draw=0) then begin
+		incLmsEnd;
+		draw:=1;
+	end
+	else begin
+		updateLms;
+		incLmsBegin;
+		draw:=0;
+	end;
+end;
+
+procedure coarseScroll;
+begin
+	dl4:= word(@dl)+4;
+
+	if (scrollCounter<40) then 	begin
+		scrollAndUpdate;
+	end
+	else begin
+		resetLms;
+		scrollCounter:=0;
+		levelPosCounter:=39;//todo: remove
+	end;
+	
+end;
+
 procedure vbl; interrupt;
 
 begin
+	coarseScroll;
 	asm { jmp $E462 };
 end;
 
@@ -142,7 +247,7 @@ BEGIN
 
 		
 	//load first forty tiles
-	for loop:=0 to 39 do begin 
+	for loop:=0 to 39 do begin //todo: 40 maybe? 
 		writeTile(loop,level1[loop]);
 	end;
 	levelPosCounter:=39;
@@ -150,7 +255,7 @@ BEGIN
 	
 	Poke(54286,192); 			//enable DLI
 	SetIntVec(iDLI, @Dli);	//set dli vector
-//	SetIntVec(iVBL, @vbl);
+	SetIntVec(iVBL, @vbl);
 
 	repeat 
 		mainLoop;
