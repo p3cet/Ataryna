@@ -1,0 +1,1 @@
+Fine scrolling shooter.
