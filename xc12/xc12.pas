@@ -104,9 +104,9 @@ end;
 begin
 	
 	//set colors
-	Poke(708,148);
+	Poke(708,148);//148
 	Poke(709,8);	
-	Poke(710,152);	//-> inverse
+	Poke(710,152);	//-> inverse, 152
 	Poke(711,4);	//inverse
 	Poke(712,0);	//bkg
 	
