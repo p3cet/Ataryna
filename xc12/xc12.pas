@@ -6,6 +6,7 @@ uses atari, b_dl, fonts;
 const
 	dlist = $5000;		//$8000
 	scanLineWid: byte = 48;
+	ramOffset: byte = 44;
 var 
 	{$I tilesSet.txt}
 	{$I levels.txt}
@@ -13,7 +14,7 @@ var
 	hscroll:byte = 3;
     loop: byte;
 	levelPos: byte = 0;
-	syncVBL: byte =0;
+	syncVBL: byte = 0;
 	vmem: word = $5100;			//$8100
 	
 	clr1: array [0..2] of byte;// absolute $8118;
@@ -29,9 +30,7 @@ var
 procedure generateDL;
 begin
 	DL_Init(dlist);
-{	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL + DL_LMS, vmem); 
-	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL ,23); 
-}	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL + DL_LMS, vmem); 
+	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL + DL_LMS, vmem); 
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,7); 
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL+ DL_DLI); 
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,9); 
@@ -58,16 +57,43 @@ end;
 
 
 
-procedure writeTile(ramOffset: byte; tileIndex: byte);
+procedure writeTile();
 var i: byte;
 	scanLine: word;
+	tileIndex: byte;
 begin
 	scanLine:=vmem+ramOffset;
-	for i:=0 to 20 do // max = 24
+
+	//area1
+	tileIndex:=level1_1[levelPos];
+	for i:=0 to 3 do
 		begin
 			Poke(scanLine,tiles[tileIndex,i]);
 			scanLine:=scanLine+scanLineWid;
 		end;
+	//area2
+	tileIndex:=level1_2[levelPos];
+	for i:=0 to 3 do
+	begin
+		Poke(scanLine,tiles[tileIndex,i]);
+		scanLine:=scanLine+scanLineWid;
+	end;
+	//area3
+	tileIndex:=level1_3[levelPos];
+	for i:=0 to 3 do
+	begin
+		Poke(scanLine,tiles[tileIndex,i]);
+		scanLine:=scanLine+scanLineWid;
+	end;
+	//area4
+	tileIndex:=level1_4[levelPos];
+	for i:=0 to 3 do
+	begin
+		Poke(scanLine,tiles[tileIndex,i]);
+		scanLine:=scanLine+scanLineWid;
+	end;
+
+
 end;
 
 procedure scroll;
@@ -76,6 +102,7 @@ begin
 			hscroll := 3;
 			syncVBL:=1;				//allow adding new line of level in main loop
 			inc(vmem);
+			//TODO: change 1? add blanklines?
 			DL_PokeW(1, vmem); 		// set new memory offset 
      
 		end; 
@@ -85,7 +112,7 @@ end;
 
 procedure addLine;
 begin
-	writeTile(44,level1[levelPos]);
+	writeTile();
 	inc(levelPos);
 	syncVBL:=0;
 
