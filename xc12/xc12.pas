@@ -1,5 +1,5 @@
 program xc12;
-uses atari, b_dl, fonts;
+uses atari, b_dl, fonts, pmlib;
 
 //game uses antic mode 4 (5 color char mode)
 
@@ -10,11 +10,9 @@ const
 var 
 	{$I tilesSet.txt}
 	{$I levels.txt}
-	s:string = '01234567890123456789012345678901234567890123456789'~;
 	hscroll:byte = 3;
-    loop: byte;
-	levelPos: byte = 0;
-	syncVBL: byte = 0;
+	levelPos: word = 0;
+	genLine: byte = 0;
 	vmem: word = $5100;			//$8100
 	
 	clr1: array [0..2] of byte;// absolute $8118;
@@ -24,18 +22,37 @@ var
 	col2: byte absolute 53273;
 	
 	dliNum: byte = 0;
+	
+	//joystick section
+	stick0: byte absolute $278;
+	{15 - neutral
+	* 14 - up
+	* 13 - down
+	* 11 - left
+	* 7 - right
+	* 10 - left up
+	* 9 - left down
+	* 6 - right up
+	* 5 - right down}
+	
+	xOffset: array [0..15] of smallint = (0,0,0,0,0,1,1,1,0,-2,-2,-2,0,0,0,0);
+	yOffset: array [0..15] of smallint = (0,0,0,0,0,1,-1,0,0,1,-1,0,0,1,-1,0);
 
+	stickVal: byte;
 
 	
 procedure generateDL;
 begin
 	DL_Init(dlist);
+	DL_Push(DL_BLANK8);
+	DL_Push(DL_BLANK8);
+	DL_Push(DL_BLANK8);
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL + DL_LMS, vmem); 
+	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,2); 
+	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL+ DL_DLI); 
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,7); 
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL+ DL_DLI); 
-	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,9); 
-	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL+ DL_DLI); 
-	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,4); 
+	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,3); 
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL+ DL_DLI); 
 	DL_Push(DL_MODE_40x24T5 + DL_HSCROLL,5); 
 	DL_Push(DL_JVB, dlist); // jump back
@@ -47,7 +64,7 @@ end;
 procedure Dli; interrupt;
 begin
 	asm { phr };
-//	Poke(54282,1);		//wsync
+//	wsync:=1;
 	col1:=clr1[dliNum];
 	col2:=clr2[dliNum];
 	inc(dliNum);
@@ -100,10 +117,10 @@ procedure scroll;
 begin
 	if hscroll = $ff then begin 	// $ff is one below zero
 			hscroll := 3;
-			syncVBL:=1;				//allow adding new line of level in main loop
+			genLine:=1;				//allow adding new line of level in main loop
 			inc(vmem);
-			//TODO: change 1? add blanklines?
-			DL_PokeW(1, vmem); 		// set new memory offset 
+			//3x8 blankllines are added, thus 4th line is poked)
+			DL_PokeW(4, vmem); 		// set new memory offset 
      
 		end; 
 		hscrol := hscroll; // set hscroll
@@ -114,52 +131,59 @@ procedure addLine;
 begin
 	writeTile();
 	inc(levelPos);
-	syncVBL:=0;
+	genLine:=0;
 
+end;
+
+procedure movePlayer; overload;
+begin
+	stickVal:=stick0;
+	if stickVal<15 then pmlib.movePlayer(xOffset[stickVal],yOffset[stickVal]);
 end;
 
 procedure vbl; interrupt;
 begin
-	if levelPos<80 then begin
-		scroll;
-	end
-	else levelPos:=0;
+	movePlayer;
+	if levelPos=280 then levelPos:=0;
+	scroll;
+	if p0pf<>0 then begin
+		pmlib.movePlayer(-5,0);
+		HITCLR:=0;					//hit clear - clears collision registers
+	end;
 	asm { jmp $E462 };
 end;
+
 
 
 begin
 	
 	//set colors
 	Poke(708,148);//148
-	Poke(709,8);	
+	Poke(709,34);	
 	Poke(710,152);	//-> inverse, 152
-	Poke(711,4);	//inverse
+	Poke(711,22);	//inverse
 	Poke(712,0);	//bkg
 	
-	clr1[0]:=34;
-	clr1[1]:=4;
-	clr1[2]:=34;
+	clr1[0]:=8;		//8
+	clr1[1]:=34;
+	clr1[2]:=8;		//8
 	
-	clr2[0]:=22;
-	clr2[1]:=8;
-	clr2[2]:=22;
-
+	clr2[0]:=4;	//144	//4
+	clr2[1]:=22;
+	clr2[2]:=4;		//4
 	
 	
 	generateDL;
 	LoadCharSet;
 
-	Poke(54286,192); 			//enable DLI
+	Poke(54286,192); 		//enable DLI
 	SetIntVec(iDLI, @Dli);	//set dli vector
 	SetIntVec(iVBL, @vbl);
 	
-	move(s[1],pointer(vmem+4),sizeOf(s)); // copy text to vram
-	move(s[1],pointer(vmem+52),sizeOf(s)); // copy text to vram
-	move(s[1],pointer(vmem+100),sizeOf(s)); // copy text to vram
-  
+	pmlib.loadPlayers;
+	
 	repeat
-	if syncVBL=1 then addLine;
+		if genLine=1 then addLine;
 	until false;
 end.
 
