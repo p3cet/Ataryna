@@ -1,5 +1,5 @@
 program xc12;
-uses atari, b_dl, fonts, pmlib;
+uses atari, b_dl, fonts, pmlib, joystick;
 
 //game uses antic mode 4 (5 color char mode)
 
@@ -12,8 +12,12 @@ var
 	{$I levels.txt}
 	hscroll:byte = 3;
 	levelPos: word = 0;
+	vertLineNum: byte = 0;
 	genLine: byte = 0;
+	
 	vmem: word = $5100;			//$8100
+	
+	shotFired: byte = 0;
 	
 	clr1: array [0..2] of byte;// absolute $8118;
 	clr2: array [0..2] of byte;// absolute $811D;
@@ -113,20 +117,6 @@ begin
 
 end;
 
-procedure scroll;
-begin
-	if hscroll = $ff then begin 	// $ff is one below zero
-			hscroll := 3;
-			genLine:=1;				//allow adding new line of level in main loop
-			inc(vmem);
-			//3x8 blankllines are added, thus 4th line is poked)
-			DL_PokeW(4, vmem); 		// set new memory offset 
-     
-		end; 
-		hscrol := hscroll; // set hscroll
-		dec(hscroll);
-end;
-
 procedure addLine;
 begin
 	writeTile();
@@ -135,23 +125,57 @@ begin
 
 end;
 
-procedure movePlayer; overload;
+
+procedure scroll;
+begin
+	if vertLineNum=160 then begin
+			//LevelPos:=Random(6)*40;
+			LevelPos:=lvl1[screenNum];
+			inc(screenNum);
+			vertLineNum:=0;
+			//inc(screenNum);
+		end;
+		
+	if hscroll = $ff then begin 	// $ff is one below zero
+		hscroll := 3;
+		genLine:=1;				//allow adding new line of level in main loop
+		inc(vmem);
+		//3x8 blankllines are added, thus 4th line is poked)
+		DL_PokeW(4, vmem); 		// set new memory offset 
+	end; 
+	hscrol := hscroll; // set hscroll
+	dec(hscroll);
+	
+	inc(vertLineNum);
+	if genLine=1 then addLine;
+	
+	
+end;
+
+
+procedure processPlayer; overload;
 begin
 	stickVal:=stick0;
 	if stickVal<15 then pmlib.movePlayer(xOffset[stickVal],yOffset[stickVal]);
+	if strig0=0 then begin
+		if shotFired=0 then begin
+			shotFired:=1;
+			pmlib.createMissile;
+		end;
+	end;
 end;
 
 procedure vbl; interrupt;
 begin
-	movePlayer;
-	if levelPos=280 then levelPos:=0;
-	scroll;
+	if shotFired=1 then shotFired:=pmlib.moveMissile;
 	if p0pf<>0 then begin
 		pmlib.movePlayer(-5,0);
 		HITCLR:=0;					//hit clear - clears collision registers
 	end;
 	asm { jmp $E462 };
 end;
+
+
 
 
 
@@ -182,8 +206,14 @@ begin
 	
 	pmlib.loadPlayers;
 	
+	vertLineNum:=255;
+	//vertLineNum:=0;
+	//LevelPos:=40;
 	repeat
-		if genLine=1 then addLine;
+		pause;
+		processPlayer;
+		scroll;
+		
 	until false;
 end.
 
