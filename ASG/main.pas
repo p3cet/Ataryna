@@ -17,20 +17,26 @@ begin
 
 	dlLvl1;
 	sdmctl:=33;
-	readkey;
+	genLineAddr(dls.vmem,dls.vmem2);
+	genTiles;
+	putTile(0,0,0);
+	putTile(1,0,1);
 	shiftRight(0);
-	pause;
+	readkey;
+
 	shiftRight(1);
+	fillTileRight(0,1);
+	readkey;
 	pause;
+
 	shiftRight(2);
+	fillTileRight(1,1);
+	readkey;
 	pause;
+	
 	shiftRight(3);
-	pause;
-	shiftRight(4);
-	pause;
-	shiftRight(5);
-	pause;
-	shiftRight(6);
+	fillTileRight(2,1);
+	readkey;
 	pause;
 	
 	dlTitle;
