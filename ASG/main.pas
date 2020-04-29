@@ -8,12 +8,10 @@ Type
 
 var
 	st: State;
-	lb: byte;
-	hb: byte;
 
 begin
-	Poke(709,12); //<- gr.8 luminance	
-	Poke(710,4);	// gr.8 background color
+	Poke(709,12); // gr.8 luminance	
+	Poke(710,4);  // gr.8 background color
 
 	dlLvl1;
 	sdmctl:=33;

@@ -20,8 +20,13 @@ var
 	i: byte;
 	lineAddr: array [0..199] of word;
 	tileSet: array [0..23] of byte;		//new tile starts every 8th byte
-	byteX: byte = 0;
-	byteY: byte = 0;
+	
+	//--PLAYER VARS--//
+	plByteX: byte = 0;
+	plByteY: byte = 0;
+	plOffsetX: byte = 8;	//8 is default pos - add one to move right, sub 1 to move left, reset on 0 and 15
+	plOffsetY: byte = 8;	//8 is default pos - add one to move down, sub 1 to move up, reset on 0 and 15
+	
 	fillMaskRight: array [0..7] of byte =(127,63,31,15,7,3,1,0);
 	fillMaskLeft: array [0..7] of byte = (254,252,248,240,224,192,128,0);
 	tempMask: byte =0;
@@ -34,8 +39,9 @@ procedure shiftLeft (x: byte);
 procedure genLineAddr (vm1: word; vm2: word);
 procedure genTiles;
 procedure putTile(bx: byte; by: byte; tileNum: byte);
-//procedure fillTileRight(bx: byte; by: byte; x: byte; tileNum: byte);
 procedure fillTileRight(x: byte; tileNum: byte);
+procedure fillTileLeft(x: byte; tileNum: byte);
+
 	
 implementation
 
@@ -85,16 +91,16 @@ implementation
 	procedure shiftRight (x: byte);
 	begin
 		for i:=0 to 7 do begin
-			Poke(lineAddr[byteY+i]+byteX, player[i] shr x);
-			Poke(lineAddr[byteY+i]+byteX+1, player[i] shl (8-x));
+			Poke(lineAddr[plByteY+i]+plByteX, player[i] shr x);
+			Poke(lineAddr[plByteY+i]+plByteX+1, player[i] shl (8-x));
 		end;
 	end;
 
 	procedure shiftLeft (x: byte);
 	begin
 		for i:=0 to 7 do begin
-			Poke(lineAddr[byteY+i]+byteX, player[i] shl x);
-			Poke(lineAddr[byteY+i]+byteX-1, player[i] shr (8-x));
+			Poke(lineAddr[plByteY+i]+plByteX, player[i] shl x);
+			Poke(lineAddr[plByteY+i]+plByteX-1, player[i] shr (8-x));
 		end;
 	end;
 
@@ -105,15 +111,25 @@ implementation
 			Poke(lineAddr[by+i]+bx,tileSet[tileNum+i]);
 	end;
 	
-	//procedure fillTileRight(bx: byte; by: byte; x: byte; tileNum: byte);
 	procedure fillTileRight(x: byte; tileNum: byte);
 	begin
 		tileNum:=tileNum*8;
 		for i:=0 to 7 do begin
-			tempMask:=tileSet[tileNum+i] AND fillMaskRight[x];	//clear first x bits of the tile
-			cell:= Peek(lineAddr[byteY+i]+byteX+1) OR tempMask;
-			Poke(lineAddr[byteY+i]+byteX+1,cell);	 //add one to bx cell on the RIGHT side has to be filled  OR tempMask
-		
+			tempMask:=tileSet[tileNum+i] AND fillMaskRight[x];	//clear last x bits of the tile
+			cell:= Peek(lineAddr[plByteY+i]+plByteX+1) OR tempMask; //mix mask and the part of the sprite written in the byte
+			Poke(lineAddr[plByteY+i]+plByteX+1,cell);	 //add one to bx, because cell on the RIGHT side has to be filled
 		end;
 	end;
+
+	procedure fillTileLeft(x: byte; tileNum: byte);		//TODO: copy pasted from fillTileRight, if something goes wrong check it first
+	begin
+		tileNum:=tileNum*8;
+		for i:=0 to 7 do begin
+			tempMask:=tileSet[tileNum+i] AND fillMaskRight[x];	//clear first x bits of the tile
+			cell:= Peek(lineAddr[plByteY+i]+plByteX-1) OR tempMask; //mix mask and the part of the sprite written in the byte
+			Poke(lineAddr[plByteY+i]+plByteX-1,cell);	 //sub one from bx, because cell on the LEFT side has to be filled
+		end;
+	end;
+
+
 end.
