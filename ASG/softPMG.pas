@@ -9,8 +9,8 @@ type
 	spriteCol = array [0..15] of byte;
 	//spriteColPointer = ^spriteCol; not needed? just make a pointer to spriteCol
 	playerState = (run, jump, shoot, melee, dead);
-	vertDir = (noneV, up, down);
-	horDir = (noneH, left, right);
+//	vertDir = (noneV, up, down);
+//	horDir = (noneH, left, right);
 	//tile = array [0..8] of byte;
 	
 const
@@ -25,12 +25,12 @@ var
 	tileSet: array [0..23] of byte;		//new tile starts every 8th byte
 	
 	//--PLAYER VARS--//
-	plVertDir: vertDir = noneV;
-	plHorDir: horDir = noneH;
+//	plVertDir: vertDir = noneV;
+//	plHorDir: horDir = noneH;
 	plByteX: byte = 0;			//plByteX and plByteY - position of left upper corner of the player sprite
 	plByteY: byte = 0;
-	plOffsetX: byte = 8;	//8 is default pos - add one to move right, sub 1 to move left, reset on 0 and 15
-	plOffsetY: byte = 8;	//8 is default pos - add one to move down, sub 1 to move up, reset on 0 and 15
+	plOffsetX: byte = 0;	//0 is default pos - add one to move right, sub 1 to move left, reset on 255 and 8
+	plOffsetY: byte = 0;	//0 is default pos - add one to move down, sub 1 to move up, reset on 255 and 8
 	//TODO: albo cos na zasadzie direction up right left down i kalkulacja offsetów na podstawie plByteX i plByteY
 	
 	fillMaskRight: array [0..7] of byte =(127,63,31,15,7,3,1,0);
@@ -49,7 +49,7 @@ var
 	joyOffset: smallint;
 	
 
-	
+procedure movePlayer;	
 procedure shiftRight (x: byte);
 procedure shiftLeft (x: byte);
 procedure genLineAddr (vm1: word; vm2: word);
@@ -57,7 +57,6 @@ procedure genTiles;
 procedure putTile(bx: byte; by: byte; tileNum: byte);
 procedure fillTileRight(x: byte; tileNum: byte);
 procedure fillTileLeft(x: byte; tileNum: byte);
-
 procedure processJoy;
 
 	
@@ -101,26 +100,9 @@ implementation
 		tileSet[21]:=255;
 		tileSet[22]:=255;
 		tileSet[23]:=255;
-		
-		
-		
 	end;
 	
-	procedure movePlayer();
-	begin
-		//TODO: remove x from shift procedure and set shift value
-		//if joy left right
-		if plOffsetX>8 then begin
-			shift:=plOffsetX-8;
-			shiftRight(shift);
-		end
-		else begin
-			shift:=plOffsetX;
-			shiftLeft(shift);
-		end;
-	end;
-	
-	procedure shiftRight (x: byte);
+	procedure shiftRight (x: byte);		//TODO: doesnt work for zero shift (x=0)
 	begin
 		for i:=0 to 7 do begin
 			Poke(lineAddr[plByteY+i]+plByteX, player[i] shr x);
@@ -165,30 +147,38 @@ implementation
 
 procedure processJoy;
 	begin
-		joyVal:=stick0;	//TODO: remove? replace with joyOffsetX[stick0] 
+		joyVal:=stick0;	 
 		joyOffset:=joyOffsetX[joyVal];
 		//TODO: check if move is possible
 		
 		//update player position
 		plOffsetX:=plOffsetX+joyOffset;		//TODO: check - add smallint to byte
-		if (plOffsetX=8) and (joyOffset=1) then inc(plByteX)
+		if (plOffsetX=8) and (joyOffset=1) then
+		begin
+			plOffsetX:=0; //reset plOffsetX
+			inc(plByteX)
+		end
 		else if plOffsetX=255  then
 		begin
-			plOffsetX:=15; //reset plOffsetX
+			plOffsetX:=7; //reset plOffsetX
 			dec(plByteX);
-		end
-		else if plOffsetX=16 then
-		begin
-			plOffsetX:=8; //reset plOffsetX
-			inc(plByteX);
-		end; 
+		end;
 		
 		joyOffset:=joyOffsetY[joyVal];
 		plOffsetY:=plOffsetY+joyOffset;
 		if (plOffsetY=255) then plOffsetY:=7
-		else if plOffsetY=16 then plOffsetY:=8; //reset plOffsetY 
-		plByteY:=plByteY+joyOffset;
+		else if plOffsetY=8 then plOffsetY:=0; //reset plOffsetY 
+		plByteY:=plByteY+joyOffset;	//TODO: vmem change check!
 		
 	end;
+
+	procedure movePlayer;
+	begin
+		processJoy;
+		joyOffset:=joyOffsetX[joyVal];
+		if joyOffset=1 then shiftRight(plOffsetX)
+		else if joyOffset=-1 then shiftLeft(plOffsetX);
+	end;
+
 
 end.

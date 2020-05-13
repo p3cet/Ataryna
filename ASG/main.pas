@@ -18,7 +18,7 @@ begin
 	sdmctl:=33;	//narrow screen
 	genLineAddr(dls.vmem,dls.vmem2);
 	genTiles;
-	putTile(0,0,0);
+{	putTile(0,0,0);
 	putTile(1,0,1);
 	shiftRight(0);
 	readkey;
@@ -36,7 +36,12 @@ begin
 	shiftRight(3);
 	fillTileRight(2,1);
 	readkey;
-	pause;
+	pause;}
+	
+	repeat
+		softPMG.movePlayer;
+		pause;
+	until keypressed;
 	
 	dlTitle;
 	st:=titleScreen;
