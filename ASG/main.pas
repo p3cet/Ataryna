@@ -1,4 +1,5 @@
 program nsg; //new speccy game
+//graphics 8 narrow screen 256x192
 
 uses atari, crt, dls, softPMG, joystick;
 
@@ -14,7 +15,7 @@ begin
 	Poke(710,4);  // gr.8 background color
 
 	dlLvl1;
-	sdmctl:=33;
+	sdmctl:=33;	//narrow screen
 	genLineAddr(dls.vmem,dls.vmem2);
 	genTiles;
 	putTile(0,0,0);
